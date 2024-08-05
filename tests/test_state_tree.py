@@ -9,7 +9,7 @@ import reflex as rx
 from reflex.state import BaseState, StateManager, StateManagerRedis, _substate_key
 
 
-class Root(BaseState):......
+class Root(BaseState):
     """Root of the state tree."""
 
     root: int

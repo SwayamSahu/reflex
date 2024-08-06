@@ -4,7 +4,6 @@ from reflex.event import Event
 from reflex.state import State
 
 
-
 def create_event(name):
     return Event(
         token="<token>",

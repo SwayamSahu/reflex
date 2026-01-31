@@ -1,52 +1,43 @@
 """Utilities to handle redirection to browser UI."""
 
-import time
-import uuid
-import webbrowser
+from typing import TYPE_CHECKING
 
-import httpx
-
-from .. import constants
-from . import console
+if TYPE_CHECKING:
+    from urllib.parse import SplitResult
 
 
-def open_browser_and_wait(
-    target_url: str, poll_url: str, interval: int = 2
-) -> httpx.Response:
-    """Open a browser window to target_url and request poll_url until it returns successfully.
+def open_browser(target_url: "SplitResult") -> None:
+    """Open a browser window to target_url.
 
     Args:
         target_url: The URL to open in the browser.
-        poll_url: The URL to poll for success.
-        interval: The interval in seconds to wait between polling.
-
-    Returns:
-        The response from the poll_url.
     """
-    if not webbrowser.open(target_url):
+    import webbrowser
+
+    from reflex.utils import console
+
+    if not webbrowser.open(target_url.geturl()):
         console.warn(
             f"Unable to automatically open the browser. Please navigate to {target_url} in your browser."
         )
-    console.info("[b]Complete the workflow in the browser to continue.[/b]")
-    while True:
-        try:
-            response = httpx.get(poll_url, follow_redirects=True)
-            if response.is_success:
-                break
-        except httpx.RequestError as err:
-            console.info(f"Will retry after error occurred while polling: {err}.")
-        time.sleep(interval)
-    return response
+    else:
+        simplified_url = target_url._replace(path="", query="", fragment="").geturl()
+        console.info(f"Opened browser to {simplified_url}")
 
 
-def reflex_build_redirect() -> str:
-    """Open the browser window to reflex.build and wait for the user to select a generation.
+def reflex_build_redirect() -> None:
+    """Open the browser window to reflex.build."""
+    from urllib.parse import urlsplit
 
-    Returns:
-        The selected generation hash.
-    """
-    token = str(uuid.uuid4())
-    target_url = constants.Templates.REFLEX_BUILD_URL.format(reflex_init_token=token)
-    poll_url = constants.Templates.REFLEX_BUILD_POLL_URL.format(reflex_init_token=token)
-    response = open_browser_and_wait(target_url, poll_url)
-    return response.json()["generation_hash"]
+    from reflex import constants
+
+    open_browser(urlsplit(constants.Templates.REFLEX_BUILD_FRONTEND_WITH_REFERRER))
+
+
+def reflex_templates():
+    """Open the browser window to reflex.build/templates."""
+    from urllib.parse import urlsplit
+
+    from reflex import constants
+
+    open_browser(urlsplit(constants.Templates.REFLEX_TEMPLATES_URL))

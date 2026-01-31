@@ -8,12 +8,17 @@ from . import elements
 
 _SUBMODULES: set[str] = {"elements"}
 _SUBMOD_ATTRS: dict[str, list[str]] = {
-    f"elements.{k}": v for k, v in elements._MAPPING.items()
+    # rx.el.a is replaced by React Router's Link.
+    f"elements.{k}": [attr for attr in attrs if attr != "a"]
+    for k, attrs in elements._MAPPING.items()
 }
-_PYRIGHT_IGNORE_IMPORTS = elements._PYRIGHT_IGNORE_IMPORTS
+_EXTRA_MAPPINGS: dict[str, str] = {
+    "a": "reflex.components.react_router.link",
+}
 
 __getattr__, __dir__, __all__ = lazy_loader.attach(
     __name__,
     submodules=_SUBMODULES,
     submod_attrs=_SUBMOD_ATTRS,
+    **_EXTRA_MAPPINGS,
 )

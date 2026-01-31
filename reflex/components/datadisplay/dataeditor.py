@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
+import dataclasses
+from collections.abc import Mapping, Sequence
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Literal, TypedDict
 
-from reflex.base import Base
 from reflex.components.component import Component, NoSSRComponent
 from reflex.components.literals import LiteralRowMarker
-from reflex.event import EventHandler
+from reflex.event import EventHandler, no_args_event_spec, passthrough_event_spec
 from reflex.utils import console, format, types
 from reflex.utils.imports import ImportDict, ImportVar
 from reflex.utils.serializers import serializer
-from reflex.vars import Var, get_unique_variable_name
+from reflex.vars import get_unique_variable_name
+from reflex.vars.base import Var
+from reflex.vars.function import FunctionStringVar
+from reflex.vars.sequence import ArrayVar
 
 
 # TODO: Fix the serialization issue for custom types.
@@ -47,75 +51,128 @@ class GridColumnIcons(Enum):
     VideoUri = "video_uri"
 
 
-# @serializer
-# def serialize_gridcolumn_icon(icon: GridColumnIcons) -> str:
-#     """Serialize grid column icon.
-
-#     Args:
-#         icon: the Icon to serialize.
-
-#     Returns:
-#         The serialized value.
-#     """
-#     return "prefix" + str(icon)
-
-
-# class DataEditorColumn(Base):
-#     """Column."""
-
-#     title: str
-#     id: Optional[str] = None
-#     type_: str = "str"
-
-
-class DataEditorTheme(Base):
+@dataclasses.dataclass
+class DataEditorThemeBase:
     """The theme for the DataEditor component."""
 
-    accent_color: Optional[str] = None
-    accent_fg: Optional[str] = None
-    accent_light: Optional[str] = None
-    base_font_style: Optional[str] = None
-    bg_bubble: Optional[str] = None
-    bg_bubble_selected: Optional[str] = None
-    bg_cell: Optional[str] = None
-    bg_cell_medium: Optional[str] = None
-    bg_header: Optional[str] = None
-    bg_header_has_focus: Optional[str] = None
-    bg_header_hovered: Optional[str] = None
-    bg_icon_header: Optional[str] = None
-    bg_search_result: Optional[str] = None
-    border_color: Optional[str] = None
-    cell_horizontal_padding: Optional[int] = None
-    cell_vertical_padding: Optional[int] = None
-    drilldown_border: Optional[str] = None
-    editor_font_size: Optional[str] = None
-    fg_icon_header: Optional[str] = None
-    font_family: Optional[str] = None
-    header_bottom_border_color: Optional[str] = None
-    header_font_style: Optional[str] = None
-    horizontal_border_color: Optional[str] = None
-    line_height: Optional[int] = None
-    link_color: Optional[str] = None
-    text_bubble: Optional[str] = None
-    text_dark: Optional[str] = None
-    text_group_header: Optional[str] = None
-    text_header: Optional[str] = None
-    text_header_selected: Optional[str] = None
-    text_light: Optional[str] = None
-    text_medium: Optional[str] = None
+    accent_color: str | None = None
+    accent_fg: str | None = None
+    accent_light: str | None = None
+    base_font_style: str | None = None
+    bg_bubble: str | None = None
+    bg_bubble_selected: str | None = None
+    bg_cell: str | None = None
+    bg_cell_medium: str | None = None
+    bg_header: str | None = None
+    bg_header_has_focus: str | None = None
+    bg_header_hovered: str | None = None
+    bg_icon_header: str | None = None
+    bg_search_result: str | None = None
+    border_color: str | None = None
+    cell_horizontal_padding: int | None = None
+    cell_vertical_padding: int | None = None
+    drilldown_border: str | None = None
+    editor_font_size: str | None = None
+    fg_icon_header: str | None = None
+    font_family: str | None = None
+    header_bottom_border_color: str | None = None
+    header_font_style: str | None = None
+    horizontal_border_color: str | None = None
+    line_height: int | None = None
+    link_color: str | None = None
+    text_bubble: str | None = None
+    text_dark: str | None = None
+    text_group_header: str | None = None
+    text_header: str | None = None
+    text_header_selected: str | None = None
+    text_light: str | None = None
+    text_medium: str | None = None
 
 
-def on_edit_spec(pos, data: dict[str, Any]):
-    """The on edit spec function.
+@dataclasses.dataclass(init=False)
+class DataEditorTheme(DataEditorThemeBase):
+    """The theme for the DataEditor component."""
 
-    Args:
-        pos: The position of the edit event.
-        data: The data of the edit event.
+    def __init__(self, **kwargs: Any):
+        """Initialize the DataEditorTheme.
 
-    Returns:
-        The position and data.
-    """
-    return [pos, data]
+        Args:
+            **kwargs: The keyword arguments to initialize the theme.
+        """
+        kwargs = {format.to_snake_case(k): v for k, v in kwargs.items()}
+        super().__init__(**kwargs)
+
+
+class Bounds(TypedDict):
+    """The bounds of the group header."""
+
+    x: int
+    y: int
+    width: int
+    height: int
+
+
+class CompatSelection(TypedDict):
+    """The selection."""
+
+    items: list
+
+
+class Rectangle(TypedDict):
+    """The bounds of the group header."""
+
+    x: int
+    y: int
+    width: int
+    height: int
+
+
+class GridSelectionCurrent(TypedDict):
+    """The current selection."""
+
+    cell: tuple[int, int]
+    range: Rectangle
+    rangeStack: list[Rectangle]
+
+
+class GridSelection(TypedDict):
+    """The grid selection."""
+
+    current: GridSelectionCurrent | None
+    columns: CompatSelection
+    rows: CompatSelection
+
+
+class GroupHeaderClickedEventArgs(TypedDict):
+    """The arguments for the group header clicked event."""
+
+    kind: str
+    group: str
+    location: tuple[int, int]
+    bounds: Bounds
+    isEdge: bool
+    shiftKey: bool
+    ctrlKey: bool
+    metaKey: bool
+    isTouch: bool
+    localEventX: int
+    localEventY: int
+    button: int
+    buttons: int
+    scrollEdge: tuple[int, int]
+
+
+class GridCell(TypedDict):
+    """The grid cell."""
+
+    span: list[int] | None
+
+
+class GridColumn(TypedDict):
+    """The grid column."""
+
+    title: str
+    group: str | None
 
 
 class DataEditor(NoSSRComponent):
@@ -123,27 +180,26 @@ class DataEditor(NoSSRComponent):
 
     tag = "DataEditor"
     is_default = True
-    library: str = "@glideapps/glide-data-grid@^5.3.0"
-    lib_dependencies: List[str] = [
-        "lodash@^4.17.21",
-        "marked@^4.0.10",
-        "react-responsive-carousel@^3.2.7",
+    library: str | None = "@glideapps/glide-data-grid@6.0.3"
+    lib_dependencies: list[str] = [
+        "lodash@4.17.21",
+        "react-responsive-carousel@3.2.23",
     ]
 
     # Number of rows.
     rows: Var[int]
 
     # Headers of the columns for the data grid.
-    columns: Var[List[Dict[str, Any]]]
+    columns: Var[Sequence[dict[str, Any]]]
 
     # The data.
-    data: Var[List[List[Any]]]
+    data: Var[Sequence[Sequence[Any]]]
 
     # The name of the callback used to find the data to display.
     get_cell_content: Var[str]
 
     # Allow selection for copying.
-    get_cell_for_selection: Var[bool]
+    get_cells_for_selection: Var[bool]
 
     # Allow paste.
     on_paste: Var[bool]
@@ -157,6 +213,9 @@ class DataEditor(NoSSRComponent):
     # Enables or disables the overlay shadow when scrolling vertically.
     fixed_shadow_y: Var[bool]
 
+    # Controls the presence of the fill indicator
+    fill_handle: Var[bool]
+
     # The number of columns which should remain in place when scrolling horizontally. Doesn't include rowMarkers.
     freeze_columns: Var[int]
 
@@ -167,7 +226,7 @@ class DataEditor(NoSSRComponent):
     header_height: Var[int]
 
     # Additional header icons:
-    # header_icons: Var[Any] # (TODO: must be a map of name: svg)
+    # header_icons: Var[Any] # (TODO: must be a map of name: svg) #noqa: ERA001
 
     # The maximum width a column can be automatically sized to.
     max_column_auto_width: Var[int]
@@ -178,7 +237,7 @@ class DataEditor(NoSSRComponent):
     # The minimum width a column can be resized to.
     min_column_width: Var[int]
 
-    # Determins the height of each row.
+    # Determines the height of each row.
     row_height: Var[int]
 
     # Kind of row markers.
@@ -202,6 +261,12 @@ class DataEditor(NoSSRComponent):
     # Allow columns selections. ("none", "single", "multi")
     column_select: Var[Literal["none", "single", "multi"]]
 
+    # Allow range selections. ("none", "cell", "rect", "multi-cell", "multi-rect").
+    range_select: Var[Literal["none", "cell", "rect", "multi-cell", "multi-rect"]]
+
+    # Allow row selections. ("none", "single", "multi").
+    row_select: Var[Literal["none", "single", "multi"]]
+
     # Prevent diagonal scrolling.
     prevent_diagonal_scrolling: Var[bool]
 
@@ -217,56 +282,80 @@ class DataEditor(NoSSRComponent):
     # Initial scroll offset on the vertical axis.
     scroll_offset_y: Var[int]
 
+    # Controls which types of range selections can exist at the same time. ("exclusive", "mixed").
+    range_selection_blending: Var[Literal["exclusive", "mixed"]]
+
+    # Controls which types of column selections can exist at the same time. ("exclusive", "mixed").
+    column_selection_blending: Var[Literal["exclusive", "mixed"]]
+
+    # Controls which types of row selections can exist at the same time. ("exclusive", "mixed").
+    row_selection_blending: Var[Literal["exclusive", "mixed"]]
+
+    # Controls how spans are handled in selections. ("default", "allowPartial").
+    span_range_behavior: Var[Literal["default", "allowPartial"]]
+
     # global theme
-    theme: Var[Union[DataEditorTheme, Dict]]
+    theme: Var[DataEditorTheme | dict]
 
     # Fired when a cell is activated.
-    on_cell_activated: EventHandler[lambda pos: [pos]]
+    on_cell_activated: EventHandler[passthrough_event_spec(tuple[int, int])]
 
     # Fired when a cell is clicked.
-    on_cell_clicked: EventHandler[lambda pos: [pos]]
+    on_cell_clicked: EventHandler[passthrough_event_spec(tuple[int, int])]
 
     # Fired when a cell is right-clicked.
-    on_cell_context_menu: EventHandler[lambda pos: [pos]]
+    on_cell_context_menu: EventHandler[passthrough_event_spec(tuple[int, int])]
 
     # Fired when a cell is edited.
-    on_cell_edited: EventHandler[on_edit_spec]
+    on_cell_edited: EventHandler[passthrough_event_spec(tuple[int, int], GridCell)]
 
     # Fired when a group header is clicked.
-    on_group_header_clicked: EventHandler[on_edit_spec]
+    on_group_header_clicked: EventHandler[
+        passthrough_event_spec(tuple[int, int], GridCell)
+    ]
 
     # Fired when a group header is right-clicked.
-    on_group_header_context_menu: EventHandler[lambda grp_idx, data: [grp_idx, data]]
+    on_group_header_context_menu: EventHandler[
+        passthrough_event_spec(int, GroupHeaderClickedEventArgs)
+    ]
 
     # Fired when a group header is renamed.
-    on_group_header_renamed: EventHandler[lambda idx, val: [idx, val]]
+    on_group_header_renamed: EventHandler[passthrough_event_spec(str, str)]
 
     # Fired when a header is clicked.
-    on_header_clicked: EventHandler[lambda pos: [pos]]
+    on_header_clicked: EventHandler[passthrough_event_spec(tuple[int, int])]
 
     # Fired when a header is right-clicked.
-    on_header_context_menu: EventHandler[lambda pos: [pos]]
+    on_header_context_menu: EventHandler[passthrough_event_spec(tuple[int, int])]
 
     # Fired when a header menu item is clicked.
-    on_header_menu_click: EventHandler[lambda col, pos: [col, pos]]
+    on_header_menu_click: EventHandler[passthrough_event_spec(int, Rectangle)]
 
     # Fired when an item is hovered.
-    on_item_hovered: EventHandler[lambda pos: [pos]]
+    on_item_hovered: EventHandler[passthrough_event_spec(tuple[int, int])]
 
     # Fired when a selection is deleted.
-    on_delete: EventHandler[lambda selection: [selection]]
+    on_delete: EventHandler[passthrough_event_spec(GridSelection)]
 
     # Fired when editing is finished.
-    on_finished_editing: EventHandler[lambda new_value, movement: [new_value, movement]]
+    on_finished_editing: EventHandler[
+        passthrough_event_spec(GridCell | None, tuple[int, int])
+    ]
 
     # Fired when a row is appended.
-    on_row_appended: EventHandler[lambda: []]
+    on_row_appended: EventHandler[no_args_event_spec]
+
+    # The current grid selection state (columns, rows, and current cell/range). Must be used when on_grid_selection_change is used otherwise updates will not be reflected in the grid.
+    grid_selection: Var[GridSelection]
+
+    # Fired when the grid selection changes. Will pass the current selection, the selected columns and the selected rows.
+    on_grid_selection_change: EventHandler[passthrough_event_spec(GridSelection)]
 
     # Fired when the selection is cleared.
-    on_selection_cleared: EventHandler[lambda: []]
+    on_selection_cleared: EventHandler[no_args_event_spec]
 
     # Fired when a column is resized.
-    on_column_resize: EventHandler[lambda col, width: [col, width]]
+    on_column_resize: EventHandler[passthrough_event_spec(GridColumn, int)]
 
     def add_imports(self) -> ImportDict:
         """Add imports for the component.
@@ -274,13 +363,64 @@ class DataEditor(NoSSRComponent):
         Returns:
             The import dict.
         """
+        if self.library is None:
+            return {}
         return {
             "": f"{format.format_library_name(self.library)}/dist/index.css",
-            self.library: "GridCellKind",
-            "/utils/helpers/dataeditor.js": ImportVar(
+            self.library: ["GridCellKind", "CompactSelection"],
+            "$/utils/helpers/dataeditor.js": ImportVar(
                 tag="formatDataEditorCells", is_default=False, install=False
             ),
         }
+
+    def add_custom_code(self) -> list[str]:
+        """Add custom code for reconstructing GridSelection with CompactSelection objects.
+
+        Note: When using on_grid_selection_change, Glide Data Grid will not update its internal selection state automatically. Instead,
+        the grid_selection prop must be updated with a GridSelection object that has CompactSelection objects for the columns and rows properties.
+        This function provides the necessary JavaScript code to reconstruct the GridSelection object from a dict representation.
+
+        Returns:
+            JavaScript code to reconstruct GridSelection.
+        """
+        return [
+            """
+        function reconstructGridSelection(selection) {
+            if (!selection || typeof selection !== 'object') {
+                return undefined;
+            }
+
+            const reconstructCompactSelection = (data) => {
+                if (!data || !data.items || !Array.isArray(data.items)) {
+                    return CompactSelection.empty();
+                }
+
+                const items = data.items;
+                if (items.length === 0) {
+                    return CompactSelection.empty();
+                }
+
+                let result = CompactSelection.empty();
+
+                // Items are stored as [start, end) ranges in CompactSelection internal format
+                for (const item of items) {
+                    if (Array.isArray(item) && item.length === 2) {
+                        const [start, end] = item;
+                        result = result.add([start, end]);
+                    }
+                }
+
+                return result;
+            };
+
+            return {
+                current: selection.current || undefined,
+                columns: reconstructCompactSelection(selection.columns),
+                rows: reconstructCompactSelection(selection.rows)
+            };
+        }
+                    """
+        ]
 
     def add_hooks(self) -> list[str]:
         """Get the hooks to render.
@@ -292,22 +432,21 @@ class DataEditor(NoSSRComponent):
         editor_id = get_unique_variable_name()
 
         # Define the name of the getData callback associated with this component and assign to get_cell_content.
-        data_callback = f"getData_{editor_id}"
-        self.get_cell_content = Var.create(
-            data_callback, _var_is_local=False, _var_is_string=False
-        )  # type: ignore
+        if self.get_cell_content is not None:
+            data_callback = self.get_cell_content._js_expr
+        else:
+            data_callback = f"getData_{editor_id}"
+            self.get_cell_content = Var(_js_expr=data_callback)
 
-        code = [f"function {data_callback}([col, row])" "{"]
+        code = [f"function {data_callback}([col, row]){{"]
 
-        columns_path = f"{self.columns._var_full_name}"
-        data_path = f"{self.data._var_full_name}"
+        columns_path = str(self.columns)
+        data_path = str(self.data)
 
-        code.extend(
-            [
-                f"    return formatDataEditorCells(col, row, {columns_path}, {data_path});",
-                "  }",
-            ]
-        )
+        code.extend([
+            f"    return formatDataEditorCells(col, row, {columns_path}, {data_path});",
+            "  }",
+        ])
 
         return ["\n".join(code)]
 
@@ -329,33 +468,33 @@ class DataEditor(NoSSRComponent):
 
         columns = props.get("columns", [])
         data = props.get("data", [])
-        rows = props.get("rows", None)
+        rows = props.get("rows")
 
         # If rows is not provided, determine from data.
         if rows is None:
-            props["rows"] = data.length() if isinstance(data, Var) else len(data)
+            if isinstance(data, Var) and not isinstance(data, ArrayVar):
+                msg = "DataEditor data must be an ArrayVar if rows is not provided."
+                raise ValueError(msg)
+
+            props["rows"] = data.length() if isinstance(data, ArrayVar) else len(data)
 
         if not isinstance(columns, Var) and len(columns):
-            if (
-                types.is_dataframe(type(data))
-                or isinstance(data, Var)
-                and types.is_dataframe(data._var_type)
+            if types.is_dataframe(type(data)) or (
+                isinstance(data, Var) and types.is_dataframe(data._var_type)
             ):
-                raise ValueError(
-                    "Cannot pass in both a pandas dataframe and columns to the data_editor component."
-                )
-            else:
-                props["columns"] = [
-                    format.format_data_editor_column(col) for col in columns
-                ]
+                msg = "Cannot pass in both a pandas dataframe and columns to the data_editor component."
+                raise ValueError(msg)
+            props["columns"] = [
+                format.format_data_editor_column(col) for col in columns
+            ]
 
         if "theme" in props:
             theme = props.get("theme")
-            if isinstance(theme, Dict):
+            if isinstance(theme, Mapping):
                 props["theme"] = DataEditorTheme(**theme)
 
         # Allow by default to select a region of cells in the grid.
-        props.setdefault("get_cell_for_selection", True)
+        props.setdefault("get_cells_for_selection", True)
 
         # Disable on_paste by default if not provided.
         props.setdefault("on_paste", False)
@@ -364,6 +503,15 @@ class DataEditor(NoSSRComponent):
             console.warn(
                 "get_cell_content is not user configurable, the provided value will be discarded"
             )
+
+        # Apply the reconstruction function to grid_selection if it's a Var
+        if (grid_selection := props.get("grid_selection")) is not None and isinstance(
+            grid_selection, Var
+        ):
+            props["grid_selection"] = FunctionStringVar.create(
+                "reconstructGridSelection"
+            ).call(grid_selection)
+
         grid = super().create(*children, **props)
         return Div.create(
             grid,
@@ -403,9 +551,9 @@ def serialize_dataeditortheme(theme: DataEditorTheme):
     Returns:
         The serialized theme.
     """
-    return format.json_dumps(
-        {format.to_camel_case(k): v for k, v in theme.__dict__.items() if v is not None}
-    )
+    return {
+        format.to_camel_case(k): v for k, v in theme.__dict__.items() if v is not None
+    }
 
 
 data_editor = DataEditor.create

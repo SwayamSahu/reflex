@@ -84,17 +84,18 @@ In the example above, you will be able to do `rx.list`
 
 from __future__ import annotations
 
-from reflex.utils import (
-    compat,  # for side-effects
-    lazy_loader,
-)
+import sys
 
-# import this here explicitly to avoid returning the page module since page attr has the
-# same name as page module(page.py)
-from .page import page as page
+from reflex.utils import lazy_loader
 
-# Remove the `compat` name from the namespace, it was imported for side-effects only.
-del compat
+if sys.version_info < (3, 11):
+    from reflex.utils import console
+
+    console.warn(
+        "Reflex support for Python 3.10 is deprecated and will be removed in a future release. Please upgrade to Python 3.11 or higher for continued support."
+    )
+    del console
+del sys
 
 RADIX_THEMES_MAPPING: dict = {
     "components.radix.themes.base": ["color_mode", "theme", "theme_panel"],
@@ -140,6 +141,7 @@ RADIX_THEMES_COMPONENTS_MAPPING: dict = {
     "components.radix.themes.components.radio_group": ["radio", "radio_group"],
     "components.radix.themes.components.dropdown_menu": ["menu", "dropdown_menu"],
     "components.radix.themes.components.separator": ["divider", "separator"],
+    "components.radix.themes.components.progress": ["progress"],
 }
 
 RADIX_THEMES_LAYOUT_MAPPING: dict = {
@@ -205,7 +207,13 @@ RADIX_PRIMITIVES_MAPPING: dict = {
     "components.radix.primitives.form": [
         "form",
     ],
-    "components.radix.primitives.progress": ["progress"],
+    "components.radix.primitives.progress": [
+        "progress",
+    ],
+}
+
+RADIX_PRIMITIVES_SHORTCUT_MAPPING: dict = {
+    k: v for k, v in RADIX_PRIMITIVES_MAPPING.items() if "progress" not in k
 }
 
 COMPONENTS_CORE_MAPPING: dict = {
@@ -236,6 +244,8 @@ COMPONENTS_CORE_MAPPING: dict = {
         "selected_files",
         "upload",
     ],
+    "components.core.auto_scroll": ["auto_scroll"],
+    "components.core.window_events": ["window_event_listener"],
 }
 
 COMPONENTS_BASE_MAPPING: dict = {
@@ -248,13 +258,14 @@ RADIX_MAPPING: dict = {
     **RADIX_THEMES_COMPONENTS_MAPPING,
     **RADIX_THEMES_TYPOGRAPHY_MAPPING,
     **RADIX_THEMES_LAYOUT_MAPPING,
-    **RADIX_PRIMITIVES_MAPPING,
+    **RADIX_PRIMITIVES_SHORTCUT_MAPPING,
 }
 
 _MAPPING: dict = {
     "experimental": ["_x"],
     "admin": ["AdminDash"],
     "app": ["App", "UploadFile"],
+    "assets": ["asset"],
     "base": ["Base"],
     "components.component": [
         "Component",
@@ -265,12 +276,7 @@ _MAPPING: dict = {
     "components.el.elements.media": ["image"],
     "components.lucide": ["icon"],
     **COMPONENTS_BASE_MAPPING,
-    "components.suneditor": [
-        "editor",
-        "EditorButtonList",
-        "EditorOptions",
-    ],
-    "components": ["el", "chakra", "radix", "lucide", "recharts", "next"],
+    "components": ["el", "radix", "lucide", "recharts"],
     "components.markdown": ["markdown"],
     **RADIX_MAPPING,
     "components.plotly": ["plotly"],
@@ -284,20 +290,25 @@ _MAPPING: dict = {
         "data_editor_theme",
     ],
     "components.sonner.toast": ["toast"],
+    "components.props": ["PropsBase"],
     "components.datadisplay.logo": ["logo"],
     "components.gridjs": ["data_table"],
     "components.moment": ["MomentDelta", "moment"],
     "config": ["Config", "DBConfig"],
     "constants": ["Env"],
+    "constants.colors": ["Color"],
     "event": [
+        "event",
         "EventChain",
         "EventHandler",
-        "background",
         "call_script",
+        "call_function",
+        "run_script",
         "clear_local_storage",
         "clear_session_storage",
         "console_log",
         "download",
+        "noop",
         "prevent_default",
         "redirect",
         "remove_cookie",
@@ -311,25 +322,31 @@ _MAPPING: dict = {
         "upload_files",
         "window_alert",
     ],
-    "middleware": ["middleware", "Middleware"],
-    "model": ["session", "Model"],
-    "state": [
-        "var",
+    "istate.storage": [
         "Cookie",
         "LocalStorage",
         "SessionStorage",
+    ],
+    "middleware": ["middleware", "Middleware"],
+    "model": ["asession", "session", "Model", "ModelRegistry"],
+    "page": ["page"],
+    "state": [
+        "var",
         "ComponentState",
         "State",
+        "dynamic",
     ],
+    "istate.shared": ["SharedState"],
+    "istate.wrappers": ["get_state"],
     "style": ["Style", "toggle_color_mode"],
-    "utils.imports": ["ImportVar"],
+    "utils.imports": ["ImportDict", "ImportVar"],
+    "utils.misc": ["run_in_thread"],
     "utils.serializers": ["serializer"],
-    "vars": ["cached_var", "Var"],
+    "vars": ["Var", "field", "Field"],
 }
 
 _SUBMODULES: set[str] = {
     "components",
-    "event",
     "app",
     "style",
     "admin",
@@ -340,10 +357,15 @@ _SUBMODULES: set[str] = {
     "vars",
     "config",
     "compiler",
+    "plugins",
 }
 _SUBMOD_ATTRS: dict = _MAPPING
-__getattr__, __dir__, __all__ = lazy_loader.attach(
+getattr, __dir__, __all__ = lazy_loader.attach(
     __name__,
     submodules=_SUBMODULES,
     submod_attrs=_SUBMOD_ATTRS,
 )
+
+
+def __getattr__(name: str):
+    return getattr(name)

@@ -4,9 +4,8 @@ from types import SimpleNamespace
 from typing import Literal
 
 from reflex.components.core.breakpoints import Responsive
-from reflex.vars import Var
-
-from ..base import LiteralAccentColor, RadixThemesComponent
+from reflex.components.radix.themes.base import LiteralAccentColor, RadixThemesComponent
+from reflex.vars.base import Var
 
 
 class DataListRoot(RadixThemesComponent):
@@ -29,6 +28,7 @@ class DataListItem(RadixThemesComponent):
 
     tag = "DataList.Item"
 
+    # The alignment of the data list item within its container.
     align: Var[Responsive[Literal["start", "center", "end", "baseline", "stretch"]]]
 
 
@@ -37,12 +37,16 @@ class DataListLabel(RadixThemesComponent):
 
     tag = "DataList.Label"
 
+    # The width of the component
     width: Var[Responsive[str]]
 
+    # The minimum width of the component
     min_width: Var[Responsive[str]]
 
+    # The maximum width of the component
     max_width: Var[Responsive[str]]
 
+    # The color scheme for the DataList component.
     color_scheme: Var[LiteralAccentColor]
 
 

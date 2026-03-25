@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from reflex.components.component import Component
+from reflex.components.component import Component, field
 from reflex.components.datadisplay.logo import svg_logo
 from reflex.components.el import a, button, div, h2, hr, p, pre, svg
 from reflex.event import EventHandler, set_clipboard
@@ -36,14 +36,16 @@ _ERROR_DISPLAY: str = r"""event_args.error.name + ': ' + event_args.error.messag
 class ErrorBoundary(Component):
     """A React Error Boundary component that catches unhandled frontend exceptions."""
 
-    library = "react-error-boundary@6.1.0"
+    library = "react-error-boundary@6.1.1"
     tag = "ErrorBoundary"
 
-    # Fired when the boundary catches an error.
-    on_error: EventHandler[on_error_spec]
+    on_error: EventHandler[on_error_spec] = field(
+        doc="Fired when the boundary catches an error."
+    )
 
-    # Rendered instead of the children when an error is caught.
-    fallback_render: Var[Component]
+    fallback_render: Var[Component] = field(
+        doc="Rendered instead of the children when an error is caught."
+    )
 
     @classmethod
     def create(cls, *children, **props):

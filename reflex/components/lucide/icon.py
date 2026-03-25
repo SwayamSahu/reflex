@@ -1,12 +1,12 @@
 """Lucide Icon component."""
 
-from reflex.components.component import Component
+from reflex.components.component import Component, field
 from reflex.utils import console, format
 from reflex.utils.imports import ImportVar
 from reflex.vars.base import LiteralVar, Var
 from reflex.vars.sequence import LiteralStringVar, StringVar
 
-LUCIDE_LIBRARY = "lucide-react@0.562.0"
+LUCIDE_LIBRARY = "lucide-react@0.577.0"
 
 
 class LucideIconComponent(Component):
@@ -20,8 +20,7 @@ class Icon(LucideIconComponent):
 
     tag = "None"
 
-    # The size of the icon in pixels.
-    size: Var[int]
+    size: Var[int] = field(doc="The size of the icon in pixels.")
 
     @classmethod
     def create(cls, *children, **props) -> Component:
@@ -33,12 +32,12 @@ class Icon(LucideIconComponent):
             *children: The positional arguments
             **props: The keyword arguments
 
+        Returns:
+            The created component.
+
         Raises:
             AttributeError: The errors tied to bad usage of the Icon component.
             TypeError: If the icon name is not a string.
-
-        Returns:
-            The created component.
         """
         if children:
             if len(children) == 1:
@@ -627,6 +626,7 @@ LUCIDE_ICON_LIST = [
     "cylinder",
     "dam",
     "database_backup",
+    "database_search",
     "database_zap",
     "database",
     "decimals_arrow_left",
@@ -681,6 +681,7 @@ LUCIDE_ICON_LIST = [
     "egg_fried",
     "egg_off",
     "egg",
+    "ellipse",
     "ellipsis_vertical",
     "ellipsis",
     "equal_approximately",
@@ -777,6 +778,7 @@ LUCIDE_ICON_LIST = [
     "fish_symbol",
     "fish",
     "fishing_hook",
+    "fishing_rod",
     "flag_off",
     "flag_triangle_left",
     "flag_triangle_right",
@@ -864,6 +866,7 @@ LUCIDE_ICON_LIST = [
     "git_compare",
     "git_fork",
     "git_graph",
+    "git_merge_conflict",
     "git_merge",
     "git_pull_request_arrow",
     "git_pull_request_closed",
@@ -876,6 +879,8 @@ LUCIDE_ICON_LIST = [
     "glass_water",
     "glasses",
     "globe_lock",
+    "globe_off",
+    "globe_x",
     "globe",
     "goal",
     "gpu",
@@ -1012,6 +1017,8 @@ LUCIDE_ICON_LIST = [
     "leaf",
     "leafy_green",
     "lectern",
+    "lens_concave",
+    "lens_convex",
     "letter_text",
     "library_big",
     "library",
@@ -1020,6 +1027,7 @@ LUCIDE_ICON_LIST = [
     "lightbulb_off",
     "lightbulb",
     "line_chart",
+    "line_dot_right_horizontal",
     "line_squiggle",
     "link_2_off",
     "link_2",
@@ -1097,6 +1105,7 @@ LUCIDE_ICON_LIST = [
     "memory_stick",
     "menu",
     "merge",
+    "message_circle_check",
     "message_circle_code",
     "message_circle_dashed",
     "message_circle_heart",
@@ -1108,6 +1117,7 @@ LUCIDE_ICON_LIST = [
     "message_circle_warning",
     "message_circle_x",
     "message_circle",
+    "message_square_check",
     "message_square_code",
     "message_square_dashed",
     "message_square_diff",
@@ -1125,6 +1135,7 @@ LUCIDE_ICON_LIST = [
     "message_square_x",
     "message_square",
     "messages_square",
+    "metronome",
     "mic_off",
     "mic_vocal",
     "mic",
@@ -1137,6 +1148,8 @@ LUCIDE_ICON_LIST = [
     "minimize_2",
     "minimize",
     "minus",
+    "mirror_rectangular",
+    "mirror_round",
     "monitor_check",
     "monitor_cloud",
     "monitor_cog",
@@ -1156,12 +1169,14 @@ LUCIDE_ICON_LIST = [
     "motorbike",
     "mountain_snow",
     "mountain",
+    "mouse_left",
     "mouse_off",
     "mouse_pointer_2_off",
     "mouse_pointer_2",
     "mouse_pointer_ban",
     "mouse_pointer_click",
     "mouse_pointer",
+    "mouse_right",
     "mouse",
     "move_3d",
     "move_diagonal_2",
@@ -1305,6 +1320,7 @@ LUCIDE_ICON_LIST = [
     "power",
     "presentation",
     "printer_check",
+    "printer_x",
     "printer",
     "projector",
     "proportions",
@@ -1432,6 +1448,7 @@ LUCIDE_ICON_LIST = [
     "share",
     "sheet",
     "shell",
+    "shelving_unit",
     "shield_alert",
     "shield_ban",
     "shield_check",
@@ -1510,6 +1527,8 @@ LUCIDE_ICON_LIST = [
     "square_arrow_out_down_right",
     "square_arrow_out_up_left",
     "square_arrow_out_up_right",
+    "square_arrow_right_enter",
+    "square_arrow_right_exit",
     "square_arrow_right",
     "square_arrow_up_left",
     "square_arrow_up_right",
@@ -1563,6 +1582,8 @@ LUCIDE_ICON_LIST = [
     "square_user_round",
     "square_user",
     "square_x",
+    "square_centerline_dashed_horizontal",
+    "square_centerline_dashed_vertical",
     "square",
     "squares_exclude",
     "squares_intersect",
@@ -1660,6 +1681,7 @@ LUCIDE_ICON_LIST = [
     "torus",
     "touchpad_off",
     "touchpad",
+    "towel_rack",
     "tower_control",
     "toy_brick",
     "tractor",
@@ -1714,12 +1736,14 @@ LUCIDE_ICON_LIST = [
     "usb",
     "user_check",
     "user_cog",
+    "user_key",
     "user_lock",
     "user_minus",
     "user_pen",
     "user_plus",
     "user_round_check",
     "user_round_cog",
+    "user_round_key",
     "user_round_minus",
     "user_round_pen",
     "user_round_plus",
@@ -1795,6 +1819,7 @@ LUCIDE_ICON_LIST = [
     "worm",
     "wrap_text",
     "wrench",
+    "x_line_top",
     "x",
     "youtube",
     "zap_off",

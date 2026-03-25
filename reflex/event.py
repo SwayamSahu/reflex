@@ -61,18 +61,21 @@ from reflex.vars.object import ObjectVar
     frozen=True,
 )
 class Event:
-    """An event that describes any state change in the app."""
+    """An event that describes any state change in the app.
 
-    # The token to specify the client that the event is for.
+    Attributes:
+        token: The token to specify the client that the event is for.
+        name: The event name.
+        router_data: The routing data where event occurred.
+        payload: The event payload.
+    """
+
     token: str
 
-    # The event name.
     name: str
 
-    # The routing data where event occurred
     router_data: dict[str, Any] = dataclasses.field(default_factory=dict)
 
-    # The event payload.
     payload: dict[str, Any] = dataclasses.field(default_factory=dict)
 
     @property
@@ -98,9 +101,12 @@ EVENT_ACTIONS_MARKER = "_rx_event_actions"
     kw_only=True,
 )
 class EventActionsMixin:
-    """Mixin for DOM event actions."""
+    """Mixin for DOM event actions.
 
-    # Whether to `preventDefault` or `stopPropagation` on the event.
+    Attributes:
+        event_actions: Whether to `preventDefault` or `stopPropagation` on the event.
+    """
+
     event_actions: dict[str, bool | int] = dataclasses.field(default_factory=dict)
 
     @property
@@ -174,13 +180,15 @@ class EventActionsMixin:
     kw_only=True,
 )
 class EventHandler(EventActionsMixin):
-    """An event handler responds to an event to update the state."""
+    """An event handler responds to an event to update the state.
 
-    # The function to call in response to the event.
+    Attributes:
+        fn: The function to call in response to the event.
+        state_full_name: The full name of the state class this event handler is attached to. Empty string means this event handler is a server side event.
+    """
+
     fn: Any = dataclasses.field(default=None)
 
-    # The full name of the state class this event handler is attached to.
-    # Empty string means this event handler is a server side event.
     state_full_name: str = dataclasses.field(default="")
 
     def __hash__(self):
@@ -309,15 +317,17 @@ class EventSpec(EventActionsMixin):
 
     Whereas an Event object is passed during runtime, a spec is used
     during compile time to outline the structure of an event.
+
+    Attributes:
+        handler: The event handler.
+        client_handler_name: The handler on the client to process event.
+        args: The arguments to pass to the function.
     """
 
-    # The event handler.
     handler: EventHandler = dataclasses.field(default=None)  # pyright: ignore [reportAssignmentType]
 
-    # The handler on the client to process event.
     client_handler_name: str = dataclasses.field(default="")
 
-    # The arguments to pass to the function.
     args: tuple[tuple[Var, Var], ...] = dataclasses.field(default_factory=tuple)
 
     def __init__(
@@ -1241,12 +1251,12 @@ def download(
         data: The data to download.
         mime_type: The mime type of the data to download.
 
+    Returns:
+        EventSpec: An event to download the associated file.
+
     Raises:
         ValueError: If the URL provided is invalid, both URL and data are provided,
             or the data is not an expected type.
-
-    Returns:
-        EventSpec: An event to download the associated file.
     """
     from reflex.components.core.cond import cond
 
@@ -1649,11 +1659,11 @@ def resolve_annotation(annotations: dict[str, Any], arg_name: str, spec: ArgsSpe
         arg_name: The argument name.
         spec: The specs which the annotations come from.
 
-    Raises:
-        MissingAnnotationError: If the annotation is missing for non-lambda methods.
-
     Returns:
         The resolved annotation.
+
+    Raises:
+        MissingAnnotationError: If the annotation is missing for non-lambda methods.
     """
     annotation = annotations.get(arg_name)
     if annotation is None:
@@ -1858,11 +1868,11 @@ def fix_events(
         token: The user token.
         router_data: The optional router data to set in the event.
 
-    Raises:
-        ValueError: If the event type is not what was expected.
-
     Returns:
         The fixed events.
+
+    Raises:
+        ValueError: If the event type is not what was expected.
     """
     # If the event handler returns nothing, return an empty list.
     if events is None:
@@ -2378,11 +2388,11 @@ class EventNamespace:
             debounce: Debounce the event handler to delay calls (in milliseconds).
             temporal: Whether the event should be dropped when the backend is down.
 
-        Raises:
-            TypeError: If background is True and the function is not a coroutine or async generator. # noqa: DAR402
-
         Returns:
             The wrapped function.
+
+        Raises:
+            TypeError: If background is True and the function is not a coroutine or async generator. # noqa: DAR402
         """
 
         def _build_event_actions():

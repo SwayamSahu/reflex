@@ -142,11 +142,11 @@ class AppHarness:
                 If unspecified, then root must already contain a working reflex app and will be used directly.
             app_name: provide the name of the app, otherwise will be derived from app_source or root.
 
-        Raises:
-            ValueError: when app_source is a string and app_name is not provided.
-
         Returns:
             AppHarness instance
+
+        Raises:
+            ValueError: when app_source is a string and app_name is not provided.
         """
         if app_name is None:
             if app_source is None:
@@ -673,18 +673,24 @@ class AppHarness:
                 driver_options = getattr(webdriver, f"{requested_driver}Options")()  # pyright: ignore [reportPossiblyUnboundVariable]
         if driver_clz is webdriver.Chrome:  # pyright: ignore [reportPossiblyUnboundVariable]
             if driver_options is None:
-                driver_options = webdriver.ChromeOptions()  # pyright: ignore [reportPossiblyUnboundVariable]
+                from selenium.webdriver.chrome.options import Options
+
+                driver_options = Options()  # pyright: ignore [reportPossiblyUnboundVariable]
             driver_options.add_argument("--class=AppHarness")
             if want_headless:
                 driver_options.add_argument("--headless=new")
         elif driver_clz is webdriver.Firefox:  # pyright: ignore [reportPossiblyUnboundVariable]
             if driver_options is None:
-                driver_options = webdriver.FirefoxOptions()  # pyright: ignore [reportPossiblyUnboundVariable]
+                from selenium.webdriver.firefox.options import Options
+
+                driver_options = Options()  # pyright: ignore [reportPossiblyUnboundVariable]
             if want_headless:
                 driver_options.add_argument("-headless")
         elif driver_clz is webdriver.Edge:  # pyright: ignore [reportPossiblyUnboundVariable]
             if driver_options is None:
-                driver_options = webdriver.EdgeOptions()  # pyright: ignore [reportPossiblyUnboundVariable]
+                from selenium.webdriver.edge.options import Options
+
+                driver_options = Options()  # pyright: ignore [reportPossiblyUnboundVariable]
             if want_headless:
                 driver_options.add_argument("headless")
         if driver_options is None:

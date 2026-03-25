@@ -1,9 +1,11 @@
 """Moment component for humanized date rendering."""
 
+from __future__ import annotations
+
 import dataclasses
 from datetime import date, datetime, time, timedelta
 
-from reflex.components.component import NoSSRComponent
+from reflex.components.component import NoSSRComponent, field
 from reflex.event import EventHandler, passthrough_event_spec
 from reflex.utils.imports import ImportDict
 from reflex.vars.base import LiteralVar, Var
@@ -29,74 +31,90 @@ class Moment(NoSSRComponent):
 
     tag: str | None = "Moment"
     is_default = True
-    library: str | None = "react-moment@1.2.0"
+    library: str | None = "react-moment@1.2.2"
     lib_dependencies: list[str] = ["moment@2.30.1"]
 
-    # How often the date update (how often time update / 0 to disable).
-    interval: Var[int]
+    interval: Var[int] = field(
+        doc="How often the date update (how often time update / 0 to disable)."
+    )
 
-    # Formats the date according to the given format string.
-    format: Var[str]
+    format: Var[str] = field(
+        doc="Formats the date according to the given format string."
+    )
 
-    # When formatting duration time, the largest-magnitude tokens are automatically trimmed when they have no value.
-    trim: Var[bool]
+    trim: Var[bool] = field(
+        doc="When formatting duration time, the largest-magnitude tokens are automatically trimmed when they have no value."
+    )
 
-    #  Use the parse attribute to tell moment how to parse the given date when non-standard.
-    parse: Var[str]
+    parse: Var[str] = field(
+        doc=" Use the parse attribute to tell moment how to parse the given date when non-standard."
+    )
 
-    # Add a delta to the base date (keys are "years", "quarters", "months", "weeks", "days", "hours", "minutes", "seconds")
-    add: Var[MomentDelta]
+    add: Var[MomentDelta] = field(
+        doc='Add a delta to the base date (keys are "years", "quarters", "months", "weeks", "days", "hours", "minutes", "seconds")'
+    )
 
-    # Subtract a delta to the base date (keys are "years", "quarters", "months", "weeks", "days", "hours", "minutes", "seconds")
-    subtract: Var[MomentDelta]
+    subtract: Var[MomentDelta] = field(
+        doc='Subtract a delta to the base date (keys are "years", "quarters", "months", "weeks", "days", "hours", "minutes", "seconds")'
+    )
 
-    # Displays the date as the time from now, e.g. "5 minutes ago".
-    from_now: Var[bool]
+    from_now: Var[bool] = field(
+        doc='Displays the date as the time from now, e.g. "5 minutes ago".'
+    )
 
-    # Setting fromNowDuring will display the relative time as with fromNow but just during its value in milliseconds, after that format will be used instead.
-    from_now_during: Var[int]
+    from_now_short: Var[bool] = field(
+        doc='Displays the relative time in a short format using abbreviated units (e.g., "1h", "2d", "3mo", "1y" instead of "1 hour ago", "2 days ago", etc.).'
+    )
 
-    # Similar to fromNow, but gives the opposite interval.
-    to_now: Var[bool]
+    from_now_during: Var[int] = field(
+        doc="Setting fromNowDuring will display the relative time as with fromNow but just during its value in milliseconds, after that format will be used instead."
+    )
 
-    # Adds a title attribute to the element with the complete date.
-    with_title: Var[bool]
+    to_now: Var[bool] = field(
+        doc="Similar to fromNow, but gives the opposite interval."
+    )
 
-    # How the title date is formatted when using the withTitle attribute.
-    title_format: Var[str]
+    with_title: Var[bool] = field(
+        doc="Adds a title attribute to the element with the complete date."
+    )
 
-    # Show the different between this date and the rendered child.
-    diff: Var[str]
+    title_format: Var[str] = field(
+        doc="How the title date is formatted when using the withTitle attribute."
+    )
 
-    # Display the diff as decimal.
-    decimal: Var[bool]
+    diff: Var[str] = field(
+        doc="Show the different between this date and the rendered child."
+    )
 
-    # Display the diff in given unit.
-    unit: Var[str]
+    decimal: Var[bool] = field(doc="Display the diff as decimal.")
 
-    # Shows the duration (elapsed time) between two dates. duration property should be behind date property time-wise.
-    duration: Var[str]
+    unit: Var[str] = field(doc="Display the diff in given unit.")
 
-    # The date to display (also work if passed as children).
-    date: Var[str | datetime | date | time | timedelta]
+    duration: Var[str] = field(
+        doc="Shows the duration (elapsed time) between two dates. duration property should be behind date property time-wise."
+    )
 
-    # Shows the duration (elapsed time) between now and the provided datetime.
-    duration_from_now: Var[bool]
+    date: Var[str | datetime | date | time | timedelta] = field(
+        doc="The date to display (also work if passed as children)."
+    )
 
-    # Tells Moment to parse the given date value as a unix timestamp.
-    unix: Var[bool]
+    duration_from_now: Var[bool] = field(
+        doc="Shows the duration (elapsed time) between now and the provided datetime."
+    )
 
-    # Outputs the result in local time.
-    local: Var[bool]
+    unix: Var[bool] = field(
+        doc="Tells Moment to parse the given date value as a unix timestamp."
+    )
 
-    # Display the date in the given timezone.
-    tz: Var[str]
+    local: Var[bool] = field(doc="Outputs the result in local time.")
 
-    # The locale to use when rendering.
-    locale: Var[str]
+    tz: Var[str] = field(doc="Display the date in the given timezone.")
 
-    # Fires when the date changes.
-    on_change: EventHandler[passthrough_event_spec(str)]
+    locale: Var[str] = field(doc="The locale to use when rendering.")
+
+    on_change: EventHandler[passthrough_event_spec(str)] = field(
+        doc="Fires when the date changes."
+    )
 
     def add_imports(self) -> ImportDict:
         """Add the imports for the Moment component.

@@ -16,6 +16,7 @@ import time
 import traceback
 import urllib.parse
 from collections.abc import AsyncIterator, Callable, Coroutine, Mapping, Sequence
+from contextvars import Token
 from datetime import datetime
 from itertools import chain
 from pathlib import Path
@@ -31,6 +32,7 @@ from reflex_base.components.component import (
     evaluate_style_namespaces,
 )
 from reflex_base.config import get_config
+from reflex_base.context.base import BaseContext
 from reflex_base.environment import ExecutorType, environment
 from reflex_base.event import (
     _EVENT_FIELDS,
@@ -40,6 +42,7 @@ from reflex_base.event import (
     IndividualEventType,
     noop,
 )
+from reflex_base.event.context import EventContext
 from reflex_base.event.processor import BaseStateEventProcessor, EventProcessor
 from reflex_base.registry import RegistrationContext
 from reflex_base.utils import console
@@ -566,7 +569,10 @@ class App(MiddlewareMixin, LifespanMixin):
                     return await self.app(scope, receive, modified_send)
 
             socket_app_with_headers = HeaderMiddleware(socket_app)
-            self._api.mount(str(constants.Endpoint.EVENT), socket_app_with_headers)
+            self._api.mount(
+                config.prepend_backend_path(str(constants.Endpoint.EVENT)),
+                socket_app_with_headers,
+            )
 
         # Check the exception handlers
         self._validate_exception_handlers()
@@ -574,8 +580,65 @@ class App(MiddlewareMixin, LifespanMixin):
         # Ensure the event processor starts and stops with the server.
         self.register_lifespan_task(self._setup_event_processor)
 
-    def _registration_context_middleware(self, app: ASGIApp) -> ASGIApp:
-        """Ensure the RegistrationContext is attached to the ASGI app.
+    def _set_contexts_internal(self) -> dict[type[BaseContext], Token]:
+        """Set Reflex contexts if not already present, returning reset tokens.
+
+        Returns:
+            A dict mapping context class to the contextvars Token for each
+            context that was set. Empty if all contexts were already present.
+        """
+        tokens: dict[type[BaseContext], Token] = {}
+
+        if self._registration_context is not None:
+            try:
+                RegistrationContext.get()
+            except LookupError:
+                tokens[RegistrationContext] = RegistrationContext.set(
+                    self._registration_context
+                )
+
+        if (
+            self._event_processor is not None
+            and self._event_processor._root_context is not None
+        ):
+            try:
+                EventContext.get()
+            except LookupError:
+                tokens[EventContext] = EventContext.set(
+                    self._event_processor._root_context
+                )
+
+        return tokens
+
+    def set_contexts(self) -> contextlib.AbstractContextManager:
+        """Set Reflex contexts needed for state and event processing.
+
+        Pushes RegistrationContext and EventContext into the current
+        contextvars scope, but only if they are not already set.
+
+        Can be used as a context manager::
+
+            with app.set_contexts():
+                async with app.modify_state(token) as state:
+                    ...
+
+        Returns:
+            A context manager that resets any contexts that were set on exit.
+        """
+        tokens = self._set_contexts_internal()
+        if not tokens:
+            return contextlib.nullcontext()
+        stack = contextlib.ExitStack()
+        for ctx_cls, tok in tokens.items():
+            stack.callback(ctx_cls.reset, tok)
+        return stack
+
+    def _context_middleware(self, app: ASGIApp) -> ASGIApp:
+        """Ensure Reflex contexts are attached for each ASGI request.
+
+        Many ASGI servers start each request with a fresh contextvars scope,
+        so this middleware re-applies the RegistrationContext and EventContext
+        that are needed for Reflex state and event processing.
 
         Args:
             app: The ASGI app to attach the middleware to.
@@ -584,14 +647,11 @@ class App(MiddlewareMixin, LifespanMixin):
             The ASGI app with the middleware attached.
         """
 
-        async def registration_context_middleware(
-            scope: Scope, receive: Receive, send: Send
-        ):
-            if self._registration_context is not None:
-                RegistrationContext.set(self._registration_context)
+        async def context_middleware(scope: Scope, receive: Receive, send: Send):
+            self._set_contexts_internal()
             await app(scope, receive, send)
 
-        return registration_context_middleware
+        return context_middleware
 
     @contextlib.asynccontextmanager
     async def _setup_event_processor(self) -> AsyncIterator[None]:
@@ -669,10 +729,10 @@ class App(MiddlewareMixin, LifespanMixin):
                     asgi_app = api_transformer(asgi_app)
 
         top_asgi_app = Starlette(lifespan=self._run_lifespan_tasks)
-        # Make sure the RegistrationContext is attached.
+        # Make sure Reflex contexts are attached for each request.
         top_asgi_app.mount(
             "",
-            self._registration_context_middleware(asgi_app),
+            self._context_middleware(asgi_app),
         )
         App._add_cors(top_asgi_app)
         return top_asgi_app
@@ -683,13 +743,14 @@ class App(MiddlewareMixin, LifespanMixin):
         if not self._api:
             return
 
+        config = get_config()
         self._api.add_route(
-            str(constants.Endpoint.PING),
+            config.prepend_backend_path(str(constants.Endpoint.PING)),
             ping,
             methods=["GET"],
         )
         self._api.add_route(
-            str(constants.Endpoint.HEALTH),
+            config.prepend_backend_path(str(constants.Endpoint.HEALTH)),
             health,
             methods=["GET"],
         )
@@ -700,20 +761,21 @@ class App(MiddlewareMixin, LifespanMixin):
 
         if not self._api:
             return
+        config = get_config()
         upload_is_used_marker = (
             prerequisites.get_backend_dir() / constants.Dirs.UPLOAD_IS_USED
         )
         if Upload.is_used or upload_is_used_marker.exists():
             # To upload files.
             self._api.add_route(
-                str(constants.Endpoint.UPLOAD),
+                config.prepend_backend_path(str(constants.Endpoint.UPLOAD)),
                 upload(self),
                 methods=["POST"],
             )
 
             # To access uploaded files.
             self._api.mount(
-                str(constants.Endpoint.UPLOAD),
+                config.prepend_backend_path(str(constants.Endpoint.UPLOAD)),
                 UploadedFilesHeadersMiddleware(StaticFiles(directory=get_upload_dir())),
                 name="uploaded_files",
             )
@@ -722,7 +784,7 @@ class App(MiddlewareMixin, LifespanMixin):
             upload_is_used_marker.touch()
         if codespaces.is_running_in_codespaces():
             self._api.add_route(
-                str(constants.Endpoint.AUTH_CODESPACE),
+                config.prepend_backend_path(str(constants.Endpoint.AUTH_CODESPACE)),
                 codespaces.auth_codespace,
                 methods=["GET"],
             )
@@ -1220,7 +1282,7 @@ class App(MiddlewareMixin, LifespanMixin):
         )
 
         # try to be somewhat accurate - but still not 100%
-        adhoc_steps_without_executor = 7
+        adhoc_steps_without_executor = 8
         fixed_pages_within_executor = 4
         plugin_count = len(config.plugins)
         progress.start()
@@ -1276,6 +1338,13 @@ class App(MiddlewareMixin, LifespanMixin):
         # Store the compile results.
         compile_results: list[tuple[str, str]] = []
 
+        progress.advance(task)
+
+        # Reinitialize vite config in case runtime options have changed.
+        compile_results.append((
+            constants.ReactRouter.VITE_CONFIG_FILE,
+            frontend_skeleton._compile_vite_config(config),
+        ))
         progress.advance(task)
 
         # Track imports found.
@@ -1551,8 +1620,11 @@ class App(MiddlewareMixin, LifespanMixin):
         def all_routes(_request: Request) -> Response:
             return JSONResponse(list(self._unevaluated_pages.keys()))
 
+        config = get_config()
         self._api.add_route(
-            str(constants.Endpoint.ALL_ROUTES), all_routes, methods=["GET"]
+            config.prepend_backend_path(str(constants.Endpoint.ALL_ROUTES)),
+            all_routes,
+            methods=["GET"],
         )
 
     @overload
@@ -1600,20 +1672,22 @@ class App(MiddlewareMixin, LifespanMixin):
         if isinstance(token, str):
             token = BaseStateToken.from_legacy_token(token, root_state=self._state)
 
-        # Get exclusive access to the state.
-        async with self.state_manager.modify_state_with_links(
-            token, previous_dirty_vars=previous_dirty_vars, **context
-        ) as state:
-            # No other event handler can modify the state while in this context.
-            yield state
-            delta = await state._get_resolved_delta()
-            state._clean()
-            if delta:
-                # When the frontend vars are modified emit the delta to the frontend.
-                await self.event_namespace.emit_update(
-                    update=StateUpdate(delta=delta),
-                    token=token.ident,
-                )
+        # Ensure Reflex contexts are available (e.g. when called from an API route).
+        with self.set_contexts():
+            # Get exclusive access to the state.
+            async with self.state_manager.modify_state_with_links(
+                token, previous_dirty_vars=previous_dirty_vars, **context
+            ) as state:
+                # No other event handler can modify the state while in this context.
+                yield state
+                delta = await state._get_resolved_delta()
+                state._clean()
+                if delta:
+                    # When the frontend vars are modified emit the delta to the frontend.
+                    await self.event_namespace.emit_update(
+                        update=StateUpdate(delta=delta),
+                        token=token.ident,
+                    )
 
     def _validate_exception_handlers(self):
         """Validate the custom event exception handlers for front- and backend.
